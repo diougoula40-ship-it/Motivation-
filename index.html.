@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Mon App de Motivation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Besoin de boost ?</h1>
+        <div id="quote-box">
+            <p id="quote">"Clique sur le bouton pour t'inspirer."</p>
+            <h3 id="author"></h3>
+        </div>
+        <button id="new-quote">Nouvelle Citation</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
