@@ -1,46 +1,99 @@
-import React, { useState } from 'react';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>OuvrierConnect - Recrutement</title>
+    <style>
+        :root { --primary: #2c3e50; --accent: #27ae60; --dark: #1a252f; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+        
+        header { background: var(--primary); color: white; padding: 2rem; text-align: center; }
+        
+        .container { max-width: 1100px; margin: 20px auto; padding: 20px; }
 
-// Simulation de données produits
-const PRODUITS = [
-  { id: 1, nom: "Montre Connectée", prix: 199, image: "https://via.placeholder.com/150" },
-  { id: 2, nom: "Casque Audio Bluetooth", prix: 89, image: "https://via.placeholder.com/150" },
-  { id: 3, nom: "Sac à Dos Laptop", prix: 45, image: "https://via.placeholder.com/150" },
-];
+        /* Formulaire d'inscription */
+        .form-section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 40px; }
+        .form-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        input, select, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; min-width: 200px; }
+        button { background: var(--accent); color: white; border: none; padding: 10px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #219150; }
 
-function App() {
-  const [panier, setPanier] = useState([]);
+        /* Grille */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
+        .card { background: white; border-radius: 12px; padding: 20px; border-left: 5px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .metier-badge { color: var(--accent); font-weight: bold; text-transform: uppercase; font-size: 0.8rem; }
+        .portfolio-box { background: #f0f0f0; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
 
-  const ajouterAuPanier = (produit) => {
-    setPanier([...panier, produit]);
-    alert(`${produit.nom} ajouté au panier !`);
-  };
+<header>
+    <h1>OuvrierConnect 🛠️</h1>
+    <p>Inscrivez-vous pour trouver des chantiers ou engagez un pro</p>
+</header>
 
-  const total = panier.reduce((acc, curr) => acc + curr.prix, 0);
+<div class="container">
+    <section class="form-section">
+        <h3>Vous êtes ouvrier ? Créez votre profil</h3>
+        <form id="workerForm">
+            <div class="form-group">
+                <input type="text" id="nom" placeholder="Votre Nom complet" required>
+                <input type="text" id="metier" placeholder="Votre métier (ex: Maçon)" required>
+                <input type="text" id="experience" placeholder="Années d'expérience" required>
+                <textarea id="portfolio" placeholder="Décrivez vos plus beaux projets..." required></textarea>
+                <button type="submit">Publier mon profil</button>
+            </div>
+        </form>
+    </section>
 
-  return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ccc' }}>
-        <h1>Ma Boutique Tech</h1>
-        <p>🛒 Panier: {panier.length} articles ({total}€)</p>
-      </header>
+    <h2>Experts disponibles</h2>
+    <div class="grid" id="displayArea"></div>
+</div>
 
-      <main style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-        {PRODUITS.map(produit => (
-          <div key={produit.id} style={{ border: '1px solid #ddd', padding: '10px', borderRadius: '8px' }}>
-            <img src={produit.image} alt={produit.nom} />
-            <h3>{produit.nom}</h3>
-            <p>{produit.prix} €</p>
-            <button 
-              onClick={() => ajouterAuPanier(produit)}
-              style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '10px', cursor: 'pointer' }}
-            >
-              Ajouter au panier
-            </button>
-          </div>
-        ))}
-      </main>
-    </div>
-  );
-}
+<script>
+    const form = document.getElementById('workerForm');
+    const displayArea = document.getElementById('displayArea');
 
-export default App;
+    // Charger les données existantes
+    let workers = JSON.parse(localStorage.getItem('mesOuvriers')) || [
+        { nom: "Jean Dupont", metier: "Électricien", experience: "10 ans", portfolio: "Câblage tour d'affaires, Domotique villa." }
+    ];
+
+    function afficherOuvriers() {
+        displayArea.innerHTML = '';
+        workers.forEach((w, index) => {
+            displayArea.innerHTML += `
+                <div class="card">
+                    <span class="metier-badge">${w.metier}</span>
+                    <h3>${w.nom}</h3>
+                    <p><strong>Expérience :</strong> ${w.experience}</p>
+                    <div class="portfolio-box">
+                        <strong>Portfolio :</strong><br> ${w.portfolio}
+                    </div>
+                    <a href="mailto:contact@site.com" style="color: #2c3e50; font-weight: bold; text-decoration: none;">📧 Contacter pour mission</a>
+                </div>
+            `;
+        });
+    }
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const newWorker = {
+            nom: document.getElementById('nom').value,
+            metier: document.getElementById('metier').value,
+            experience: document.getElementById('experience').value,
+            portfolio: document.getElementById('portfolio').value
+        };
+
+        workers.push(newWorker);
+        localStorage.setItem('mesOuvriers', JSON.stringify(workers));
+        form.reset();
+        afficherOuvriers();
+    });
+
+    afficherOuvriers(); // Appel initial
+</script>
+
+</body>
+</html>
