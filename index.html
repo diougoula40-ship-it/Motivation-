@@ -23,6 +23,7 @@
         .card { background: white; border-radius: 12px; padding: 20px; border-left: 5px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .metier-badge { color: var(--accent); font-weight: bold; text-transform: uppercase; font-size: 0.8rem; }
         .portfolio-box { background: #f0f0f0; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 0.9rem; }
+        .card-image { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -40,6 +41,7 @@
                 <input type="text" id="nom" placeholder="Votre Nom complet" required>
                 <input type="text" id="metier" placeholder="Votre métier (ex: Maçon)" required>
                 <input type="text" id="experience" placeholder="Années d'expérience" required>
+                <input type="url" id="photoUrl" placeholder="Lien d'une photo de votre travail (ex: https://lien-image.jpg)">
                 <textarea id="portfolio" placeholder="Décrivez vos plus beaux projets..." required></textarea>
                 <button type="submit">Publier mon profil</button>
             </div>
@@ -56,14 +58,16 @@
 
     // Charger les données existantes
     let workers = JSON.parse(localStorage.getItem('mesOuvriers')) || [
-        { nom: "Jean Dupont", metier: "Électricien", experience: "10 ans", portfolio: "Câblage tour d'affaires, Domotique villa." }
+        { nom: "Jean Dupont", metier: "Électricien", experience: "10 ans", portfolio: "Câblage tour d'affaires, Domotique villa.", photoUrl: "https://via.placeholder.com/400x200?text=Projet+Electricite" }
     ];
 
     function afficherOuvriers() {
         displayArea.innerHTML = '';
         workers.forEach((w, index) => {
+            const photoHtml = w.photoUrl ? `<img src="${w.photoUrl}" alt="Photo de ${w.nom}" class="card-image">` : '';
             displayArea.innerHTML += `
                 <div class="card">
+                    ${photoHtml}
                     <span class="metier-badge">${w.metier}</span>
                     <h3>${w.nom}</h3>
                     <p><strong>Expérience :</strong> ${w.experience}</p>
@@ -83,6 +87,7 @@
             nom: document.getElementById('nom').value,
             metier: document.getElementById('metier').value,
             experience: document.getElementById('experience').value,
+            photoUrl: document.getElementById('photoUrl').value,
             portfolio: document.getElementById('portfolio').value
         };
 
