@@ -1,97 +1,46 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jeu de Dames - 12 Pions & Rois</title>
-    <style>
-        body { display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: white; font-family: sans-serif; margin: 0; padding: 20px; touch-action: manipulation; }
-        #board { display: grid; grid-template-columns: repeat(8, 40px); grid-template-rows: repeat(8, 40px); border: 8px solid #5d4037; }
-        .square { width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; }
-        .black { background-color: #4e342e; }
-        .white { background-color: #d7ccc8; }
-        .piece { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 3px solid rgba(0,0,0,0.3); position: relative; }
-        .red-piece { background: radial-gradient(circle, #ff5252, #b71c1c); }
-        .blue-piece { background: radial-gradient(circle, #448aff, #0d47a1); }
-        .king::after { content: '👑'; position: absolute; top: 2px; left: 4px; font-size: 18px; }
-        .selected { transform: scale(1.1); border-color: #ffeb3b; box-shadow: 0 0 10px #ffeb3b; }
-        h1 { font-size: 1.2rem; color: #ffeb3b; }
-    </style>
-</head>
-<body>
-    <h1>Jeu des 12 Pions</h1>
-    <p id="status">Tour : Rouges</p>
-    <div id="board"></div>
+import React, { useState } from 'react';
 
-    <script>
-        const board = document.getElementById('board');
-        const status = document.getElementById('status');
-        let selectedPiece = null;
-        let turn = 'red';
+// Simulation de données produits
+const PRODUITS = [
+  { id: 1, nom: "Montre Connectée", prix: 199, image: "https://via.placeholder.com/150" },
+  { id: 2, nom: "Casque Audio Bluetooth", prix: 89, image: "https://via.placeholder.com/150" },
+  { id: 3, nom: "Sac à Dos Laptop", prix: 45, image: "https://via.placeholder.com/150" },
+];
 
-        function init() {
-            board.innerHTML = '';
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const sq = document.createElement('div');
-                    sq.className = `square ${(r + c) % 2 === 0 ? 'white' : 'black'}`;
-                    sq.dataset.row = r; sq.dataset.col = c;
-                    if ((r + c) % 2 !== 0) {
-                        if (r < 3) createPiece('red', sq);
-                        else if (r > 4) createPiece('blue', sq);
-                    }
-                    sq.onclick = () => move(sq);
-                    board.appendChild(sq);
-                }
-            }
-        }
+function App() {
+  const [panier, setPanier] = useState([]);
 
-        function createPiece(color, parent) {
-            const p = document.createElement('div');
-            p.className = `piece ${color}-piece`;
-            p.dataset.color = color;
-            p.dataset.type = 'pion';
-            p.onclick = (e) => {
-                e.stopPropagation();
-                if (color === turn) {
-                    if (selectedPiece) selectedPiece.classList.remove('selected');
-                    selectedPiece = p;
-                    p.classList.add('selected');
-                }
-            };
-            parent.appendChild(p);
-        }
+  const ajouterAuPanier = (produit) => {
+    setPanier([...panier, produit]);
+    alert(`${produit.nom} ajouté au panier !`);
+  };
 
-        function move(sq) {
-            if (!selectedPiece || sq.firstChild || !sq.classList.contains('black')) return;
-            const from = selectedPiece.parentElement;
-            const r1 = parseInt(from.dataset.row), c1 = parseInt(from.dataset.col);
-            const r2 = parseInt(sq.dataset.row), c2 = parseInt(sq.dataset.col);
-            const dr = r2 - r1, dc = Math.abs(c2 - c1);
-            const isKing = selectedPiece.classList.contains('king');
+  const total = panier.reduce((acc, curr) => acc + curr.prix, 0);
 
-            // Logique de mouvement et capture
-            let valid = false;
-            if (dc === 1 && (isKing || (turn === 'red' ? dr === 1 : dr === -1))) valid = true;
-            else if (dc === 2 && (isKing || (turn === 'red' ? dr === 2 : dr === -2))) {
-                const midR = r1 + dr / 2, midC = c1 + (c2 - c1) / 2;
-                const midSq = document.querySelector(`[data-row="${midR}"][data-col="${midC}"]`);
-                if (midSq.firstChild && midSq.firstChild.dataset.color !== turn) {
-                    midSq.innerHTML = '';
-                    valid = true;
-                }
-            }
+  return (
+    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ccc' }}>
+        <h1>Ma Boutique Tech</h1>
+        <p>🛒 Panier: {panier.length} articles ({total}€)</p>
+      </header>
 
-            if (valid) {
-                sq.appendChild(selectedPiece);
-                if ((turn === 'red' && r2 === 7) || (turn === 'blue' && r2 === 0)) selectedPiece.classList.add('king');
-                selectedPiece.classList.remove('selected');
-                selectedPiece = null;
-                turn = turn === 'red' ? 'blue' : 'red';
-                status.innerText = `Tour : ${turn === 'red' ? 'Rouges' : 'Bleus'}`;
-            }
-        }
-        init();
-    </script>
-</body>
-</html>
+      <main style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+        {PRODUITS.map(produit => (
+          <div key={produit.id} style={{ border: '1px solid #ddd', padding: '10px', borderRadius: '8px' }}>
+            <img src={produit.image} alt={produit.nom} />
+            <h3>{produit.nom}</h3>
+            <p>{produit.prix} €</p>
+            <button 
+              onClick={() => ajouterAuPanier(produit)}
+              style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '10px', cursor: 'pointer' }}
+            >
+              Ajouter au panier
+            </button>
+          </div>
+        ))}
+      </main>
+    </div>
+  );
+}
+
+export default App;
