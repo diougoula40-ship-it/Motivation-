@@ -1,119 +1,57 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OuvrierConnect - Galerie Photo</title>
-    <style>
-        :root { --primary: #2c3e50; --accent: #27ae60; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f7f6; }
-        header { background: var(--primary); color: white; padding: 20px; text-align: center; }
-        .container { max-width: 900px; margin: auto; padding: 20px; }
+import requests
+import folium
+import webbrowser
+import os
 
-        /* Formulaire */
-        .form-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .form-group { display: flex; flex-direction: column; gap: 15px; }
-        input, textarea { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+def obtenir_mon_ip():
+    # Utilise une API simple pour obtenir l'IP publique actuelle
+    try:
+        return requests.get('https://api.ipify.org').text
+    except:
+        return None
+
+def generer_carte_interactive():
+    # 1. Détection de l'IP
+    ip_cible = input("Entrez une IP (ou appuyez sur Entrée pour la vôtre) : ")
+    if not ip_cible:
+        ip_cible = obtenir_mon_ip()
+    
+    print(f"Analyse de l'IP : {ip_cible}...")
+
+    # 2. Récupération des données de géolocalisation
+    url = f"http://ip-api.com/json/{ip_cible}"
+    data = requests.get(url).json()
+
+    if data.get('status') == 'success':
+        lat, lon = data['lat'], data['lon']
+        ville = data.get('city', 'Inconnue')
         
-        /* Style spécial pour le bouton photo */
-        .file-label { background: #34495e; color: white; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; }
+        # 3. Création de la carte
+        carte = folium.Map(location=[lat, lon], zoom_start=12)
         
-        button { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        # Ajout d'un cercle pour montrer la zone d'incertitude
+        folium.Circle(
+            radius=2000, # Rayon de 2km car l'IP n'est pas précise à 100%
+            location=[lat, lon],
+            color="crimson",
+            fill=True,
+        ).add_to(carte)
 
-        /* Grille des profils */
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .card-img { width: 100%; height: 200px; object-fit: cover; background: #eee; }
-        .card-content { padding: 15px; }
-        .badge { background: #e8f5e9; color: var(--accent); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
-    </style>
-</head>
-<body>
+        folium.Marker(
+            [lat, lon], 
+            popup=f"IP: {ip_cible}\nVille: {ville}",
+            icon=folium.Icon(color='blue', icon='home')
+        ).add_to(carte)
 
-<header>
-    <h1>OuvrierConnect 🛠️</h1>
-    <p>Prenez vos travaux en photo et publiez-les !</p>
-</header>
+        # 4. Sauvegarde et ouverture automatique
+        nom_fichier = "ma_localisation.html"
+        carte.save(nom_fichier)
+        
+        print(f"Carte générée : {nom_fichier}")
+        # Ouvre automatiquement le navigateur
+        webbrowser.open('file://' + os.path.realpath(nom_fichier))
+    else:
+        print("Erreur : Impossible de récupérer les données.")
 
-<div class="container">
-    <section class="form-card">
-        <h3>Ajouter mon profil d'ouvrier</h3>
-        <form id="workerForm">
-            <div class="form-group">
-                <input type="text" id="nom" placeholder="Nom complet" required>
-                <input type="text" id="metier" placeholder="Votre métier" required>
-                
-                <label class="file-label">
-                    📷 Choisir une photo de mon travail
-                    <input type="file" id="photoFile" accept="image/*" style="display: none;">
-                </label>
-                <div id="previewText" style="font-size: 0.8rem; color: #666;">Aucune photo choisie</div>
-
-                <textarea id="portfolio" placeholder="Décrivez votre expérience..." rows="3" required></textarea>
-                <button type="submit">S'inscrire sur la plateforme</button>
-            </div>
-        </form>
-    </section>
-
-    <div class="grid" id="displayArea"></div>
-</div>
-
-<script>
-    const form = document.getElementById('workerForm');
-    const photoInput = document.getElementById('photoFile');
-    const previewText = document.getElementById('previewText');
-    let base64Image = "";
-
-    // Détection du choix de fichier pour afficher le nom
-    photoInput.addEventListener('change', function() {
-        if(this.files[0]) {
-            previewText.innerText = "Photo prête : " + this.files[0].name;
-            
-            // Conversion de l'image en texte (Base64)
-            const reader = new FileReader();
-            reader.onload = function(e) { base64Image = e.target.result; };
-            reader.readAsDataURL(this.files[0]);
-        }
-    });
-
-    let workers = JSON.parse(localStorage.getItem('mesOuvriersV2')) || [];
-
-    function afficher() {
-        const area = document.getElementById('displayArea');
-        area.innerHTML = '';
-        workers.forEach(w => {
-            area.innerHTML += `
-                <div class="card">
-                    <img src="${w.image || 'https://via.placeholder.com/300x200?text=Pas+de+photo'}" class="card-img">
-                    <div class="card-content">
-                        <span class="badge">${w.metier}</span>
-                        <h3>${w.nom}</h3>
-                        <p>${w.portfolio}</p>
-                        <button style="width:100%; padding:8px;">Contacter</button>
-                    </div>
-                </div>
-            `;
-        });
-    }
-
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const newWorker = {
-            nom: document.getElementById('nom').value,
-            metier: document.getElementById('metier').value,
-            portfolio: document.getElementById('portfolio').value,
-            image: base64Image
-        };
-        workers.push(newWorker);
-        localStorage.setItem('mesOuvriersV2', JSON.stringify(workers));
-        form.reset();
-        base64Image = "";
-        previewText.innerText = "Aucune photo choisie";
-        afficher();
-    });
-
-    afficher();
-</script>
-
-</body>
-</html>
+if __name__ == "__main__":
+    generer_carte_interactive()
