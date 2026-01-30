@@ -1,56 +1,80 @@
-import folium
-from folium import CustomIcon
-
-# 1. Configuration initiale (Paris)
-centre_ville = [48.8566, 2.3522]
-jeu = folium.Map(location=centre_ville, zoom_start=14, tiles="cartodbpositron")
-
-# 2. Données des clients (Position, Nom, Bagage)
-clients = [
-    {"pos": [48.8584, 2.2945], "nom": "Client Tour Eiffel", "objet": "Valise de luxe"},
-    {"pos": [48.8606, 2.3376], "nom": "Client Louvre", "objet": "Sac à dos mystérieux"},
-    {"pos": [48.8529, 2.3501], "nom": "Client Notre-Dame", "objet": "Caisse de souvenirs"},
-    {"pos": [48.8738, 2.2950], "nom": "Client Arc de Triomphe", "objet": "Gros colis de mode"}
-]
-
-# 3. Ajouter les clients sur la carte
-for c in clients:
-    # On crée un texte spécial pour le popup (le "jeu")
-    html_popup = f"""
-    <div style="font-family: Arial; width: 150px;">
-        <h4>🚖 {c['nom']}</h4>
-        <p><b>Objet:</b> {c['objet']}</p>
-        <button onclick="alert('Bagage récupéré ! En route pour la prochaine course 🏍️💨'); this.parentElement.innerHTML='✅ Récupéré !';">
-            Prendre le bagage
-        </button>
-    </div>
-    """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Jeu Moto-Taxi Paris</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     
-    # Utilisation d'une icône de personne ou de sac
-    folium.Marker(
-        location=c['pos'],
-        popup=folium.Popup(html_popup, max_width=200),
-        icon=folium.Icon(color="orange", icon="user", prefix="fa")
-    ).add_to(jeu)
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .info-box {
+            position: fixed; top: 10px; left: 50px; z-index: 1000;
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2); font-family: sans-serif;
+        }
+        .btn-recup {
+            background: #ff9800; border: none; color: white;
+            padding: 5px 10px; border-radius: 4px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
 
-# 4. Ajouter le Moto-Taxi (Le joueur)
-# On place le joueur au centre au départ
-folium.Marker(
-    location=[48.8540, 2.3450],
-    popup="C'est vous ! Déplacez-vous vers les clients.",
-    icon=folium.Icon(color="black", icon="motorcycle", prefix="fa")
-).add_to(jeu)
-
-# 5. Instructions
-instructions = """
-<div style="position: fixed; top: 10px; left: 50px; width: 250px; z-index:9999; 
-     background: white; padding: 10px; border: 2px solid black; border-radius: 10px;">
-     <h4>🏍️ Mission Moto-Taxi</h4>
-     <p>Cliquez sur les icônes <b>orange</b> pour récupérer les bagages des clients parisiens !</p>
+<div class="info-box">
+    <h2 style="margin:0">🏍️ Mission Moto-Taxi</h2>
+    <p>Cliquez sur les icônes <b>orange</b> pour récupérer les bagages !</p>
+    <div id="score">Bagages récupérés : 0 / 4</div>
 </div>
-"""
-jeu.get_root().html.add_child(folium.Element(instructions))
 
-# Sauvegarde et message
-jeu.save("jeu_moto_taxi.html")
-print("✅ Le jeu a été généré ! Ouvre le fichier 'jeu_moto_taxi.html' dans ton navigateur.")
+<div id="map"></div>
+
+<script>
+    // Initialisation de la carte sur Paris
+    var map = L.map('map').setView([48.8566, 2.3522], 14);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    var score = 0;
+
+    // Fonction pour l'action de collecte
+    function collecter(nom, bouton) {
+        alert("Génial ! Vous avez récupéré le bagage de : " + nom);
+        score++;
+        document.getElementById('score').innerHTML = "Bagages récupérés : " + score + " / 4";
+        bouton.parentElement.innerHTML = "✅ Terminé !";
+        if(score === 4) alert("🏆 BRAVO ! Toutes les courses sont terminées !");
+    }
+
+    // Liste des clients
+    var clients = [
+        {pos: [48.8584, 2.2945], nom: "Client Tour Eiffel", objet: "Valise"},
+        {pos: [48.8606, 2.3376], nom: "Client Louvre", objet: "Sac à dos"},
+        {pos: [48.8529, 2.3501], nom: "Client Notre-Dame", objet: "Caisse"},
+        {pos: [48.8738, 2.2950], nom: "Client Arc de Triomphe", objet: "Colis"}
+    ];
+
+    // Ajouter les clients (Marqueurs Orange)
+    clients.forEach(function(c) {
+        var popupContent = `
+            <b>${c.nom}</b><br>Objet : ${c.objet}<br><br>
+            <button class="btn-recup" onclick="collecter('${c.nom}', this)">Prendre le bagage</button>
+        `;
+        L.marker(c.pos).addTo(map).bindPopup(popupContent);
+    });
+
+    // Ajouter le joueur (Marqueur Moto Noir)
+    var motoIcon = L.divIcon({
+        html: '<i class="fa-solid fa-motorcycle fa-2x" style="color: black;"></i>',
+        iconSize: [30, 30], className: 'my-div-icon'
+    });
+    L.marker([48.8540, 2.3450], {icon: motoIcon}).addTo(map).bindPopup("C'est vous !");
+
+</script>
+</body>
+</html>
