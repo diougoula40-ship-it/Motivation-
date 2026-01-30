@@ -1,167 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>Moto-Taxi City Adventure</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <style>
-        body { margin: 0; background: #222; overflow: hidden; font-family: sans-serif; }
-        canvas { display: block; background: #444; } /* La route */
-        #ui {
-            position: fixed; top: 10px; left: 10px; color: white;
-            background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px;
-            pointer-events: none; z-index: 10;
-        }
-    </style>
+    <title>Moto Taxi 3D</title>
+    <style>body { margin: 0; }</style>
+    <script type="importmap">
+      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
 </head>
 <body>
+<script type="module">
+    import * as THREE from 'three';
 
-<div id="ui">
-    <div>📦 Livraisons: <span id="score">0</span></div>
-    <div>⛽ Carburant: <span id="fuel">100</span>%</div>
-</div>
+    // 1. LA SCÈNE ET LA CAMÉRA
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb); // Ciel bleu
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-<canvas id="gameCanvas"></canvas>
+    // 2. LA ROUTE (Un plan gris)
+    const roadGeo = new THREE.PlaneGeometry(20, 1000);
+    const roadMat = new THREE.MeshStandardMaterial({color: 0x333333});
+    const road = new THREE.Mesh(roadGeo, roadMat);
+    road.rotation.x = -Math.PI / 2; // On l'allonge au sol
+    scene.add(road);
 
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+    // 3. LA MOTO (Un cube rouge pour l'instant)
+    const motoGeo = new THREE.BoxGeometry(1, 1, 2);
+    const motoMat = new THREE.MeshStandardMaterial({color: 0xff0000});
+    const moto = new THREE.Mesh(motoGeo, motoMat);
+    moto.position.y = 0.5;
+    scene.add(moto);
 
-// --- PARAMÈTRES DU JEU ---
-let score = 0;
-let fuel = 100;
-let gameActive = true;
+    // 4. LUMIÈRE
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(5, 10, 7.5);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x404040));
 
-const player = {
-    x: canvas.width / 2,
-    y: canvas.height - 100,
-    w: 30,
-    h: 50,
-    speed: 5
-};
+    // Position de la caméra derrière la moto
+    camera.position.set(0, 5, 10);
+    camera.lookAt(moto.position);
 
-const objects = []; // Arbres, maisons, passants, bagages
-const keys = {};
+    // 5. ANIMATION
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        // Faire défiler la route pour simuler la vitesse
+        road.position.z += 0.5;
+        if (road.position.z > 50) road.position.z = 0;
 
-// --- GÉNÉRATION DES DÉCORS ---
-function createObject(type) {
-    let side = Math.random() > 0.5 ? 'left' : 'right';
-    let obj = {
-        type: type,
-        x: side === 'left' ? Math.random() * (canvas.width/2 - 60) : (canvas.width/2 + 60) + Math.random() * (canvas.width/2 - 60),
-        y: -100,
-        w: 40,
-        h: 40,
-        speed: 3
-    };
-
-    if(type === 'bagage') {
-        obj.x = (canvas.width/2 - 40) + Math.random() * 80; // Sur la route
-        obj.color = 'gold';
-    } else if (type === 'passant') {
-        obj.color = 'pink';
-        obj.w = 20; obj.h = 20;
-    } else {
-        obj.color = type === 'arbre' ? 'green' : 'brown'; // Maison ou Arbre
+        renderer.render(scene, camera);
     }
-    objects.push(obj);
-}
-
-// Boucle pour créer des objets régulièrement
-setInterval(() => {
-    if(!gameActive) return;
-    let r = Math.random();
-    if(r < 0.05) createObject('maison');
-    else if(r < 0.15) createObject('arbre');
-    else if(r < 0.18) createObject('passant');
-    else if(r < 0.20) createObject('bagage');
-}, 100);
-
-// --- LOGIQUE ---
-window.addEventListener('keydown', e => keys[e.code] = true);
-window.addEventListener('keyup', e => keys[e.code] = false);
-
-function update() {
-    if(!gameActive) return;
-
-    // Déplacement
-    if(keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
-    if(keys['ArrowRight'] && player.x < canvas.width - player.w) player.x += player.speed;
-    
-    fuel -= 0.05;
-    document.getElementById('fuel').innerText = Math.floor(fuel);
-
-    if(fuel <= 0) {
-        gameActive = false;
-        alert("Panne d'essence ! Score final: " + score);
-        location.reload();
-    }
-
-    objects.forEach((obj, index) => {
-        obj.y += obj.speed;
-
-        // Collision avec le joueur
-        if (player.x < obj.x + obj.w && player.x + player.w > obj.x &&
-            player.y < obj.y + obj.h && player.y + player.h > obj.y) {
-            
-            if(obj.type === 'bagage') {
-                score++;
-                fuel = Math.min(100, fuel + 20);
-                document.getElementById('score').innerText = score;
-                objects.splice(index, 1);
-            } else {
-                // Collision avec décor ou passant = ralentissement ou fin
-                fuel -= 5;
-                objects.splice(index, 1);
-            }
-        }
-
-        // Nettoyer les objets sortis de l'écran
-        if(obj.y > canvas.height) objects.splice(index, 1);
-    });
-}
-
-// --- DESSIN ---
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Dessiner la route
-    ctx.fillStyle = '#555';
-    ctx.fillRect(canvas.width/2 - 70, 0, 140, canvas.height);
-    
-    // Ligne pointillée
-    ctx.strokeStyle = 'white';
-    ctx.setLineDash([20, 20]);
-    ctx.beginPath();
-    ctx.moveTo(canvas.width/2, 0);
-    ctx.lineTo(canvas.width/2, canvas.height);
-    ctx.stroke();
-
-    // Dessiner le joueur (Moto)
-    ctx.fillStyle = '#00ffcc';
-    ctx.fillRect(player.x, player.y, player.w, player.h);
-
-    // Dessiner les objets (Décors, Passants, Bagages)
-    objects.forEach(obj => {
-        ctx.fillStyle = obj.color;
-        if(obj.type === 'passant') {
-            ctx.beginPath();
-            ctx.arc(obj.x + 10, obj.y + 10, 10, 0, Math.PI*2);
-            ctx.fill();
-        } else {
-            ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
-        }
-    });
-
-    requestAnimationFrame(() => {
-        update();
-        draw();
-    });
-}
-
-draw();
+    animate();
 </script>
 </body>
 </html>
