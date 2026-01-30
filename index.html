@@ -1,59 +1,157 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Moto Taxi 3D</title>
-    <style>body { margin: 0; }</style>
-    <script type="importmap">
-      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-    </script>
+    <meta charset="utf-8">
+    <title>Moto-Taxi 3D Pro</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87ceeb; font-family: sans-serif; }
+        #ui { position: fixed; top: 20px; left: 20px; color: white; text-shadow: 2px 2px black; z-index: 10; pointer-events: none; }
+        .hint { position: fixed; bottom: 20px; width: 100%; text-align: center; color: white; }
+    </style>
 </head>
 <body>
+
+<div id="ui">
+    <h1>CITY RIDER 3D</h1>
+    <div id="score">Distance: 0m</div>
+</div>
+<div class="hint">Utilise les flèches GAUCHE et DROITE pour diriger la moto</div>
+
+<script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
 <script type="module">
     import * as THREE from 'three';
 
-    // 1. LA SCÈNE ET LA CAMÉRA
+    // --- INITIALISATION ---
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb); // Ciel bleu
+    scene.background = new THREE.Color(0x87ceeb); // Ciel
+    scene.fog = new THREE.Fog(0x87ceeb, 20, 100); // Brouillard pour cacher l'horizon
+
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // 2. LA ROUTE (Un plan gris)
-    const roadGeo = new THREE.PlaneGeometry(20, 1000);
-    const roadMat = new THREE.MeshStandardMaterial({color: 0x333333});
+    // --- LUMIÈRES ---
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(10, 20, 10);
+    sun.castShadow = true;
+    scene.add(sun);
+    scene.add(new THREE.AmbientLight(0x404040, 0.8));
+
+    // --- OBJETS ---
+    
+    // 1. La Route (longue bande)
+    const roadGeo = new THREE.PlaneGeometry(10, 200);
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
     const road = new THREE.Mesh(roadGeo, roadMat);
-    road.rotation.x = -Math.PI / 2; // On l'allonge au sol
+    road.rotation.x = -Math.PI / 2;
+    road.receiveShadow = true;
     scene.add(road);
 
-    // 3. LA MOTO (Un cube rouge pour l'instant)
-    const motoGeo = new THREE.BoxGeometry(1, 1, 2);
-    const motoMat = new THREE.MeshStandardMaterial({color: 0xff0000});
-    const moto = new THREE.Mesh(motoGeo, motoMat);
-    moto.position.y = 0.5;
-    scene.add(moto);
+    // 2. La Moto (Groupe de formes pour faire un "vrai" objet)
+    const player = new THREE.Group();
+    
+    // Corps de la moto
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 1.5), new THREE.MeshStandardMaterial({color: 0xff0000}));
+    body.position.y = 0.6;
+    body.castShadow = true;
+    player.add(body);
 
-    // 4. LUMIÈRE
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(5, 10, 7.5);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x404040));
+    // Roues
+    const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+    const wheelMat = new THREE.MeshStandardMaterial({color: 0x111111});
+    const w1 = new THREE.Mesh(wheelGeo, wheelMat);
+    w1.rotation.z = Math.PI/2;
+    w1.position.set(0, 0.3, 0.6);
+    player.add(w1);
+    
+    const w2 = w1.clone();
+    w2.position.z = -0.6;
+    player.add(w2);
 
-    // Position de la caméra derrière la moto
-    camera.position.set(0, 5, 10);
-    camera.lookAt(moto.position);
+    scene.add(player);
 
-    // 5. ANIMATION
+    // --- DÉCOR (Arbres et Maisons) ---
+    const decorObjects = [];
+    function spawnDecor(zPos) {
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const x = side * (7 + Math.random() * 5);
+        
+        let mesh;
+        if(Math.random() > 0.5) {
+            // Arbre
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.5), new THREE.MeshStandardMaterial({color: 0x8B4513}));
+            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshStandardMaterial({color: 0x228B22}));
+            leaves.position.y = 1.5;
+            mesh = new THREE.Group();
+            mesh.add(trunk, leaves);
+        } else {
+            // Maison
+            mesh = new THREE.Mesh(new THREE.BoxGeometry(3, 4, 3), new THREE.MeshStandardMaterial({color: 0xaaaaaa}));
+            mesh.position.y = 2;
+        }
+        
+        mesh.position.set(x, 0, zPos);
+        mesh.castShadow = true;
+        scene.add(mesh);
+        decorObjects.push(mesh);
+    }
+
+    // Créer un décor de départ
+    for(let i = 0; i < 20; i++) spawnDecor(-i * 10);
+
+    // --- CONTRÔLES ---
+    const keys = { Left: false, Right: false };
+    window.addEventListener('keydown', (e) => {
+        if(e.key === "ArrowLeft") keys.Left = true;
+        if(e.key === "ArrowRight") keys.Right = true;
+    });
+    window.addEventListener('keyup', (e) => {
+        if(e.key === "ArrowLeft") keys.Left = false;
+        if(e.key === "ArrowRight") keys.Right = false;
+    });
+
+    // --- BOUCLE DE JEU ---
+    camera.position.set(0, 4, 8);
+    camera.lookAt(0, 0, -2);
+
+    let speed = 0.4;
+    let distance = 0;
+
     function animate() {
         requestAnimationFrame(animate);
-        
-        // Faire défiler la route pour simuler la vitesse
-        road.position.z += 0.5;
-        if (road.position.z > 50) road.position.z = 0;
+
+        // Déplacement latéral
+        if(keys.Left && player.position.x > -4) player.position.x -= 0.1;
+        if(keys.Right && player.position.x < 4) player.position.x += 0.1;
+
+        // Effet de défilement (on bouge les objets vers le joueur)
+        decorObjects.forEach((obj, index) => {
+            obj.position.z += speed;
+            if(obj.position.z > 15) {
+                obj.position.z = -150; // On le remet au loin
+                obj.position.x = (Math.random() > 0.5 ? 1 : -1) * (7 + Math.random() * 5);
+            }
+        });
+
+        distance += speed;
+        document.getElementById('score').innerText = `Distance: ${Math.floor(distance)}m`;
 
         renderer.render(scene, camera);
     }
+
     animate();
+
+    // Redimensionnement fenêtre
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 </script>
 </body>
 </html>
