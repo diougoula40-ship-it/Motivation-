@@ -1,57 +1,56 @@
-import requests
 import folium
-import webbrowser
-import os
+from folium import CustomIcon
 
-def obtenir_mon_ip():
-    # Utilise une API simple pour obtenir l'IP publique actuelle
-    try:
-        return requests.get('https://api.ipify.org').text
-    except:
-        return None
+# 1. Configuration initiale (Paris)
+centre_ville = [48.8566, 2.3522]
+jeu = folium.Map(location=centre_ville, zoom_start=14, tiles="cartodbpositron")
 
-def generer_carte_interactive():
-    # 1. Détection de l'IP
-    ip_cible = input("Entrez une IP (ou appuyez sur Entrée pour la vôtre) : ")
-    if not ip_cible:
-        ip_cible = obtenir_mon_ip()
+# 2. Données des clients (Position, Nom, Bagage)
+clients = [
+    {"pos": [48.8584, 2.2945], "nom": "Client Tour Eiffel", "objet": "Valise de luxe"},
+    {"pos": [48.8606, 2.3376], "nom": "Client Louvre", "objet": "Sac à dos mystérieux"},
+    {"pos": [48.8529, 2.3501], "nom": "Client Notre-Dame", "objet": "Caisse de souvenirs"},
+    {"pos": [48.8738, 2.2950], "nom": "Client Arc de Triomphe", "objet": "Gros colis de mode"}
+]
+
+# 3. Ajouter les clients sur la carte
+for c in clients:
+    # On crée un texte spécial pour le popup (le "jeu")
+    html_popup = f"""
+    <div style="font-family: Arial; width: 150px;">
+        <h4>🚖 {c['nom']}</h4>
+        <p><b>Objet:</b> {c['objet']}</p>
+        <button onclick="alert('Bagage récupéré ! En route pour la prochaine course 🏍️💨'); this.parentElement.innerHTML='✅ Récupéré !';">
+            Prendre le bagage
+        </button>
+    </div>
+    """
     
-    print(f"Analyse de l'IP : {ip_cible}...")
+    # Utilisation d'une icône de personne ou de sac
+    folium.Marker(
+        location=c['pos'],
+        popup=folium.Popup(html_popup, max_width=200),
+        icon=folium.Icon(color="orange", icon="user", prefix="fa")
+    ).add_to(jeu)
 
-    # 2. Récupération des données de géolocalisation
-    url = f"http://ip-api.com/json/{ip_cible}"
-    data = requests.get(url).json()
+# 4. Ajouter le Moto-Taxi (Le joueur)
+# On place le joueur au centre au départ
+folium.Marker(
+    location=[48.8540, 2.3450],
+    popup="C'est vous ! Déplacez-vous vers les clients.",
+    icon=folium.Icon(color="black", icon="motorcycle", prefix="fa")
+).add_to(jeu)
 
-    if data.get('status') == 'success':
-        lat, lon = data['lat'], data['lon']
-        ville = data.get('city', 'Inconnue')
-        
-        # 3. Création de la carte
-        carte = folium.Map(location=[lat, lon], zoom_start=12)
-        
-        # Ajout d'un cercle pour montrer la zone d'incertitude
-        folium.Circle(
-            radius=2000, # Rayon de 2km car l'IP n'est pas précise à 100%
-            location=[lat, lon],
-            color="crimson",
-            fill=True,
-        ).add_to(carte)
+# 5. Instructions
+instructions = """
+<div style="position: fixed; top: 10px; left: 50px; width: 250px; z-index:9999; 
+     background: white; padding: 10px; border: 2px solid black; border-radius: 10px;">
+     <h4>🏍️ Mission Moto-Taxi</h4>
+     <p>Cliquez sur les icônes <b>orange</b> pour récupérer les bagages des clients parisiens !</p>
+</div>
+"""
+jeu.get_root().html.add_child(folium.Element(instructions))
 
-        folium.Marker(
-            [lat, lon], 
-            popup=f"IP: {ip_cible}\nVille: {ville}",
-            icon=folium.Icon(color='blue', icon='home')
-        ).add_to(carte)
-
-        # 4. Sauvegarde et ouverture automatique
-        nom_fichier = "ma_localisation.html"
-        carte.save(nom_fichier)
-        
-        print(f"Carte générée : {nom_fichier}")
-        # Ouvre automatiquement le navigateur
-        webbrowser.open('file://' + os.path.realpath(nom_fichier))
-    else:
-        print("Erreur : Impossible de récupérer les données.")
-
-if __name__ == "__main__":
-    generer_carte_interactive()
+# Sauvegarde et message
+jeu.save("jeu_moto_taxi.html")
+print("✅ Le jeu a été généré ! Ouvre le fichier 'jeu_moto_taxi.html' dans ton navigateur.")
