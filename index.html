@@ -2,79 +2,123 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Jeu Moto-Taxi Paris</title>
+    <title>Moto-Taxi : Course Contre la Montre</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     
     <style>
-        body { margin: 0; padding: 0; }
+        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        .info-box {
-            position: fixed; top: 10px; left: 50px; z-index: 1000;
-            background: white; padding: 15px; border-radius: 8px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2); font-family: sans-serif;
+        .ui-panel {
+            position: fixed; top: 10px; left: 10px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); min-width: 200px;
         }
-        .btn-recup {
-            background: #ff9800; border: none; color: white;
-            padding: 5px 10px; border-radius: 4px; cursor: pointer;
-        }
+        .stat { font-size: 1.2em; font-weight: bold; margin-bottom: 5px; color: #2c3e50; }
+        #timer { color: #e74c3c; }
+        .controls { font-size: 0.85em; color: #7f8c8d; border-top: 1px solid #ddd; pt: 5px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="info-box">
-    <h2 style="margin:0">🏍️ Mission Moto-Taxi</h2>
-    <p>Cliquez sur les icônes <b>orange</b> pour récupérer les bagages !</p>
-    <div id="score">Bagages récupérés : 0 / 4</div>
+<div class="ui-panel">
+    <div class="stat">📦 Bagages : <span id="score">0 / 4</span></div>
+    <div class="stat">⏱️ Temps : <span id="timer">0.0</span>s</div>
+    <div class="controls">
+        ⌨️ <b>Flèches</b> pour conduire<br>
+        🎯 Touche les cercles oranges !
+    </div>
 </div>
 
 <div id="map"></div>
 
 <script>
-    // Initialisation de la carte sur Paris
-    var map = L.map('map').setView([48.8566, 2.3522], 14);
+    // 1. Config de la carte
+    var map = L.map('map', { 
+        keyboard: false,
+        zoomControl: false 
+    }).setView([48.8566, 2.3522], 16);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+    // 2. Variables de jeu
     var score = 0;
+    var temps = 0;
+    var jeuActif = false;
+    var intervalChrono;
+    var motoPos = { lat: 48.8566, lng: 2.3522 };
+    var vitesse = 0.0004; 
 
-    // Fonction pour l'action de collecte
-    function collecter(nom, bouton) {
-        alert("Génial ! Vous avez récupéré le bagage de : " + nom);
-        score++;
-        document.getElementById('score').innerHTML = "Bagages récupérés : " + score + " / 4";
-        bouton.parentElement.innerHTML = "✅ Terminé !";
-        if(score === 4) alert("🏆 BRAVO ! Toutes les courses sont terminées !");
-    }
+    // 3. La Moto
+    var motoIcon = L.divIcon({
+        html: '<i class="fa-solid fa-motorcycle fa-2x" style="color: #2ecc71; text-shadow: 2px 2px black;"></i>',
+        iconSize: [30, 30], className: 'moto-icon'
+    });
+    var motoMarker = L.marker([motoPos.lat, motoPos.lng], {icon: motoIcon}).addTo(map);
 
-    // Liste des clients
+    // 4. Les Clients
     var clients = [
-        {pos: [48.8584, 2.2945], nom: "Client Tour Eiffel", objet: "Valise"},
-        {pos: [48.8606, 2.3376], nom: "Client Louvre", objet: "Sac à dos"},
-        {pos: [48.8529, 2.3501], nom: "Client Notre-Dame", objet: "Caisse"},
-        {pos: [48.8738, 2.2950], nom: "Client Arc de Triomphe", objet: "Colis"}
+        {pos: [48.8584, 2.2945], nom: "Tour Eiffel", recup: false},
+        {pos: [48.8606, 2.3376], nom: "Louvre", recup: false},
+        {pos: [48.8529, 2.3501], nom: "Notre-Dame", recup: false},
+        {pos: [48.8570, 2.3650], nom: "Place des Vosges", recup: false}
     ];
 
-    // Ajouter les clients (Marqueurs Orange)
-    clients.forEach(function(c) {
-        var popupContent = `
-            <b>${c.nom}</b><br>Objet : ${c.objet}<br><br>
-            <button class="btn-recup" onclick="collecter('${c.nom}', this)">Prendre le bagage</button>
-        `;
-        L.marker(c.pos).addTo(map).bindPopup(popupContent);
+    var circles = clients.map(c => {
+        return L.circle(c.pos, {color: 'orange', fillColor: '#f39c12', fillOpacity: 0.5, radius: 30}).addTo(map);
     });
 
-    // Ajouter le joueur (Marqueur Moto Noir)
-    var motoIcon = L.divIcon({
-        html: '<i class="fa-solid fa-motorcycle fa-2x" style="color: black;"></i>',
-        iconSize: [30, 30], className: 'my-div-icon'
-    });
-    L.marker([48.8540, 2.3450], {icon: motoIcon}).addTo(map).bindPopup("C'est vous !");
+    // 5. Logique du Chronomètre
+    function demarrerChrono() {
+        if (!jeuActif) {
+            jeuActif = true;
+            intervalChrono = setInterval(() => {
+                temps += 0.1;
+                document.getElementById('timer').innerHTML = temps.toFixed(1);
+            }, 100);
+        }
+    }
 
+    // 6. Gestion du Clavier
+    window.addEventListener('keydown', function(e) {
+        if (score < 4) demarrerChrono(); // Lance le chrono au premier mouvement
+
+        if (e.key === "ArrowUp") motoPos.lat += vitesse;
+        if (e.key === "ArrowDown") motoPos.lat -= vitesse;
+        if (e.key === "ArrowLeft") motoPos.lng -= vitesse;
+        if (e.key === "ArrowRight") motoPos.lng += vitesse;
+
+        var newLatLng = new L.LatLng(motoPos.lat, motoPos.lng);
+        motoMarker.setLatLng(newLatLng);
+        map.panTo(newLatLng);
+
+        verifierCapture();
+    });
+
+    function verifierCapture() {
+        clients.forEach((c, i) => {
+            if (!c.recup) {
+                var dist = map.distance([motoPos.lat, motoPos.lng], c.pos);
+                if (dist < 35) {
+                    c.recup = true;
+                    score++;
+                    circles[i].setStyle({color: 'green', fillColor: '#2ecc71'});
+                    document.getElementById('score').innerHTML = score + " / 4";
+                    
+                    if (score === 4) {
+                        clearInterval(intervalChrono);
+                        jeuActif = false;
+                        setTimeout(() => {
+                            alert("🏁 TERMINÉ !\nTemps final : " + temps.toFixed(1) + " secondes.\nPeux-tu faire mieux ?");
+                            location.reload(); // Recommencer
+                        }, 100);
+                    }
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>
