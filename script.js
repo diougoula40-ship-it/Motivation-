@@ -21,3 +21,19 @@ player.add(targetObject); // Attaché à la moto
 headlight.target = targetObject;
 
 player.add(headlight); // On attache le phare à la moto
+
+// Dans la fonction spawnDecor, si c'est une maison :
+if (type === 'maison') {
+    const houseGeo = new THREE.BoxGeometry(3, 4, 3);
+    const houseMat = new THREE.MeshStandardMaterial({ color: 0x111111 }); // Maison sombre
+    const mesh = new THREE.Mesh(houseGeo, houseMat);
+    
+    // Ajouter une petite fenêtre lumineuse (Emissive)
+    const windowGeo = new THREE.PlaneGeometry(0.5, 0.5);
+    const windowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // Jaune brillant
+    const window = new THREE.Mesh(windowGeo, windowMat);
+    window.position.set(0, 1, 1.51); // Placée sur la façade
+    mesh.add(window);
+    
+    scene.add(mesh);
+}
